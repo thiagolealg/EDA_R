@@ -1,0 +1,429 @@
+---
+title: "Análise Exploratória de Dados, Mineração, Predição e Aplicação Prática"
+author: "Prof. MSc. Weslley Rodrigues"
+date: "`r Sys.Date()`"
+output:
+  prettydoc::html_pretty:
+    theme: cayman
+    highlight: github
+  html_document:
+    df_print: paged
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Análise Exploratória de Dados - Continuação
+
+Este documento apresenta uma análise exploratória de dados (EDA) para os ,usando R como ferramenta de análise. Trata-se do resultado da pesquisa State of Data Brasil - 2022.
+
+Vamos aprofundar a análise exploratória desta base que é sensacional.
+
+Essas são as bibliotecas necessárias (ou não). Mas chamem o "Mano Pac" aí.
+
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+if (!require(pacman)) install.packages("pacman")
+pacman::p_load(lubridate, ggplot2, dplyr, ggplottidyr, readr, prettydoc, maps, janitor, stringr, tidyr, magrittr)
+```
+
+### **Parte 1: manipulação, limpeza e transformação de dados**
+
+Carregando nosso *Data Set* original: State of Data Brasil - 2022
+
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+state_of_data_2022 <- read_csv("https://www.dropbox.com/scl/fi/p34i2jg33pg8ds2g9r2yt/state_of_data_2022.csv?rlkey=hq58nv7yra5xfulcilioeler6&st=atcrzohp&dl=1")
+head(state_of_data_2022)
+```
+
+Agora vamos melhorar o cabeçalho do nosso conjunto de dados.
+
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+dados_processados <- state_of_data_2022 %>% 
+  clean_names()
+head(dados_processados)
+ 
+```
+
+Ótimo !! Perceba que o nome das colunas (nossas variáveis) estão mais limpas e organizadas.
+
+## Validação e limpeza dos dados
+
+vamos agora renomear as colunas do nosso conjunto de dados. Isso é importante para tornar mais fácil a referência às variáveis durante a análise.
+
+Sugiro sempre manter o padrão com **letras minúsculas e separadas por underline.**
+
+Outra ação importante: vamos selecionar, dentre as 353 variáveis (colunas) somente aquelas cque contém informações relevantes para a nossa análise.
+
+### Seleção dos dados relevantes
+
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+# Selecionando e renomeando colunas
+dados_selecionados <- dados_processados %>%
+  select(
+    id = p0_id,
+    idade = p1_a_idade,
+    faixa_idade = p1_a_1_faixa_idade,
+    genero = p1_b_genero,
+    cor_raca_etnia = p1_c_cor_raca_etnia,
+    pcd = p1_d_pcd,
+    vive_no_brasil = p1_g_vive_no_brasil,
+    estado_onde_mora = p1_i_estado_onde_mora,
+    experiencia_dados = p2_i_quanto_tempo_de_experiencia_na_area_de_dados_voce_tem,
+    faixa_salarial = p2_h_faixa_salarial,
+    remuneracao = p2_o_1_remuneracao_salario,
+    atuacao = p4_a_1_atuacao
+  ) %>%
+  # O tratamento de dados ausentes ou formatos específicos pode ser feito aqui
+  mutate(
+    vive_no_brasil = as.logical(vive_no_brasil),
+    faixa_idade = as.factor(faixa_idade),
+    genero = as.factor(genero),
+    cor_raca_etnia = as.factor(cor_raca_etnia),
+    pcd = as.factor(pcd),
+    atuacao = as.factor(atuacao)
+  ) #caso nós fossemos retirar os valores vazios, poderíamos usar a função "drop_na()" aqui
+head(dados_selecionados)
+```
+
+### Ajuste nas categorias de variáveis
+
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+# Transformações e conversões
+dados_tratados <- dados_selecionados%>%
+  mutate(
+    experiencia_dados_num = case_when(
+      experiencia_dados == "Menos de 1 ano" ~ 0.5,
+      experiencia_dados == "de 1 a 2 anos" ~ 1.5,
+      experiencia_dados == "de 3 a 4 anos" ~ 3.5,
+      experiencia_dados == "de 4 a 6 anos" ~ 5,
+      experiencia_dados == "de 6 a 8 anos" ~ 7,
+      experiencia_dados == "Mais de 10 anos" ~ 10,
+      TRUE ~ as.numeric(NA) # Caso não se encaixe em nenhuma categoria
+    ),
+    faixa_salarial_num = as.numeric(str_extract(faixa_salarial, "\\d+")) +
+    as.numeric(str_extract(str_extract(faixa_salarial, "/mês a R\\$ [\\d\\.]+"), "\\d+")) / 2
+  ) %>% #
+  drop_na(experiencia_dados_num, faixa_salarial_num) #aqui vamos deixar os campos vazio de lado.
+head(dados_tratados)
+```
+
+#### Sobre o que foi feito:
+
+-   Pense no "mutate" como uma ferramenta que nos permite moldar e refinar nossos dados brutos.
+
+-   No contexto da nossa aula, usamos o mutate para criar novas colunas que simplificam e padronizam as informações complexas que temos.
+
+-   Por exemplo, transformamos a experiência de trabalho, que estava em texto, em números que representam anos, facilitando análises futuras.
+
+-   Da mesma forma, convertemos faixas salariais, que eram intervalos, em um único valor numérico médio.
+
+-   Ao final desse processo, teremos um conjunto de dados limpo e organizado, pronto para ser explorado e analisado em profundidade.
+
+    ------------------------------------------------------------------------
+
+### Momento PANDINHA volta pra minha vida, por favor.
+
+Só se for pra sua, Gênio. rsrsrs
+
+------------------------------------------------------------------------
+
+Uma diferença crucial entre Python e o R é o propósito para qual cada uma dessas linguagens foi criada. De forma muito simplista:
+
+-   O Python foi criado para ser uma linguagem de propósito geral.
+
+-   O R foi criado para ser uma linguagem de análise de dados.
+
+Isso significa que o R tem muitas funções e pacotes específicos para análise de dados que não estão disponíveis no Python.
+
+Por outro lado, o Python é uma linguagem mais versátil e pode ser usada para muitas outras tarefas além da análise de dados.
+
+Ou seja, O R é muito melhor que o Python para os Gênios Cientistas que foram atuar com análise de dados.
+
+------------------------------------------------------------------------
+
+## Parte 2: Análise Explotatória de Dados
+
+Vocês já sabem o que é a famosa AED (ou EDA para quem já baixou o Duolingo o smartphone).
+
+Nossa meta é identificar tendências, variações, anomalias e outras características dinâmicas presentes no conjunto de dados.
+
+Esses insights são fundamentais para qualquer análise subsequente e para tomar decisões baseadas em dados concretos.
+
+### O início: análise descritiva
+
+Esta etapa, Gênios, é a peça inaugural padrão ouro da análise de dados.
+
+Vamos resumir e descrever as características principais do nosso conjunto de dados.
+
+Insights poderosos podem ser extraídos dessa análise, então vamos em frente.
+
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+summary(dados_tratados)
+```
+
+### Eita, Professor. Fez isso no Pandinha é?
+
+Se alguém fez esta pergunta e estou paralizado, por favor, ligue para o SAMU.
+
+### Análise de Idade
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+ggplot(dados_tratados, aes(x = idade)) +
+  geom_histogram(bins = 30, fill = "#66cc66", color = "#1a421a") +  # Verde como cor de preenchimento
+  labs(title = "Distribuição de Idades", x = "Idade", y = "Frequência") +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(size = 20, face = "bold", hjust = 0.5),
+    axis.title = element_text(size = 14, face = "bold"),
+    axis.text = element_text(size = 12),
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank()
+  ) +
+  scale_fill_gradient(low = "lightgreen", high = "darkgreen") +  # Gradiente de verde
+  geom_vline(aes(xintercept = mean(idade, na.rm = TRUE)), color = "red", linetype = "dashed", size = 1) +
+  annotate("text", x = mean(dados_tratados$idade, na.rm = TRUE), y = max(table(cut(dados_tratados$idade, breaks = 30))), label = "Média", vjust = -1, color = "red")
+
+```
+
+### Boxplot de Faixa Salarial por Gênero
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+
+ggplot(dados_tratados, aes(x = genero, y = faixa_salarial_num)) +
+  geom_boxplot(fill = "lightblue") +
+  labs(title = "Salários por Gênero", x = "Gênero", y = "Faixa Salarial")
+```
+
+#### **Componentes Visuais**:
+
+-   **Intervalo Interquartil (IQR)**: Mostra a variação dos salários.
+
+-   **Mediana**: Representa o valor central da distribuição salarial.
+
+-   **Whiskers (Antenas)**: Indicam a variabilidade fora do IQR.
+
+-   **Outliers**: Pontos que refletem variações ou anomalias na distribuição.
+
+#### **Análise de Disparidades**:
+
+-   **Disparidades de Gênero**: Mulheres tendem a ter salários mais baixos.
+
+-   **Grupo 'Prefiro não informar'**: Apresenta menor variação salarial, possivelmente devido a uma amostra menor ou mais uniforme.
+
+### Contagem de Profissionais por Faixa de Experiência
+
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+
+dados_tratados %>%
+  count(experiencia_dados) %>%
+  ggplot(aes(x = reorder(experiencia_dados, n), y = n, fill = experiencia_dados)) +
+  geom_col() +
+  labs(title = "Contagem de Profissionais por Faixa de Experiência", x = "Faixa de Experiência", y = "Número de Profissionais") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+### Relação entre Idade e Faixa Salarial
+
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+ggplot(dados_tratados, aes(x = idade, y = faixa_salarial_num)) +
+  geom_point(alpha = 0.6, size = 3) +
+  labs(title = "Relação entre Idade e Faixa Salarial", x = "Idade", y = "Faixa Salarial (Numérica)") +
+  theme_minimal()
+```
+
+### Distribuição de Profissionais por Atuação
+
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+dados_tratados %>%
+  count(atuacao) %>%
+  ggplot(aes(x = reorder(atuacao, n), y = n, fill = atuacao)) +
+  geom_col() +
+  labs(title = "Distribuição de Profissionais por Atuação", x = "Área de Atuação", y = "Número de Profissionais") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+### Proporção de Profissionais que Vivem no Brasil
+
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+dados_tratados %>%
+  count(vive_no_brasil) %>%
+  ggplot(aes(x = vive_no_brasil, y = n, fill = vive_no_brasil)) +
+  geom_col() +
+  labs(title = "Proporção de Profissionais que Vivem no Brasil", x = "Vive no Brasil", y = "Número de Profissionais") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+```
+
+### Distribuição de Profissionais por Estado no Brasil
+
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+library(magrittr)
+library(ggplot2)
+dados_tratados %>%
+    filter(!is.na(estado_onde_mora)) %>%  # Remove linhas onde o estado é NA
+    count(estado_onde_mora) %>%
+  top_n(10, n) %>%  # Seleciona os 10 estados com mais registros
+  ggplot(aes(x = reorder(estado_onde_mora, n), y = n, fill = estado_onde_mora)) +
+  geom_col() +
+  labs(title = "Top 10 Estados com Mais Profissionais no Brasil", x = "Estado", y = "Número de Profissionais") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+### Conclusão das análises
+
+-   Nesta análise exploratória de dados, pudemos identificar padrões e tendências relevantes no conjunto de dados do mercado de dados.
+
+-   A distribuição de idades dos profissionais é ampla, com a maioria concentrada entre 25 e 35 anos.
+
+-   O boxplot de faixa salarial por gênero mostra uma distribuição semelhante entre homens e mulheres, com algumas diferenças notáveis.
+
+-   A contagem de profissionais por faixa de experiência revela que a maioria dos profissionais tem entre 1 e 5 anos de experiência em dados.
+
+-   A relação entre idade e faixa salarial mostra uma tendência geral de aumento salarial com a idade, com algumas variações entre os gêneros.
+
+-   Além disto, visualimos um pouquinho a distribuição geográfica dos profissionais de dados.
+
+------------------------------------------------------------------------
+
+## PARTE 3 - Análise de Dados e Tomada de Decisão
+
+Vamos iniciar o nosso caminho para a reta final da disciplina, Turma. Dessa forma, preciso colocar todos em um nivelamento mínimo para que possamos, nas próximas aulas, avançar com mais segurança.
+
+### Mineração de Dados e Pensamento Analítico
+
+Nesta seção, vamos mergulhar no mundo da mineração de dados, que é o processo de descobrir padrões e informações valiosas em grandes conjuntos de dados. Vamos também desenvolver nosso pensamento analítico, que é a habilidade de entender e interpretar esses padrões para tomar decisões baseadas em dados.
+
+### Clustering com R
+
+O clustering é uma técnica de mineração de dados que agrupa objetos semelhantes em clusters. Vamos usar o método K-means, um algoritmo popular para realizar essa tarefa.
+
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+# Aplicação de clustering com o método K-means
+set.seed(123) # Garante que o resultado seja reproduzível
+resultado_kmeans <- kmeans(mtcars[, c("mpg", "wt")], centers = 3) # Aplica K-means nos dados
+mtcars$cluster <- as.factor(resultado_kmeans$cluster) # Adiciona os resultados ao dataframe
+```
+
+### Visualização Gráfica - Clustering com R
+
+```{r}
+# Cria um gráfico para visualizar os clusters
+ggplot(mtcars, aes(x = wt, y = mpg, color = cluster)) +
+  geom_point() +
+  labs(title = "Clustering de Carros por Milhas por Galão e Peso", x = "Peso (1000 lbs)", y = "Milhas por Galão")
+```
+
+### Comunicação de Insights com R
+
+Usamos `kmeans` para aplicar o algoritmo nos dados de milhas por galão (`mpg`) e peso (`wt`) dos carros. O resultado é adicionado ao dataframe `mtcars` como uma nova coluna chamada `cluster`. Por fim, visualizamos os clusters com um gráfico de dispersão.
+
+------------------------------------------------------------------------
+
+### Como estão as habilidades para inserir atributos neste tipo de visualização, Gênios??
+
+------------------------------------------------------------------------
+
+### Modelagem e Interpretação: implementação e comunicação dos resultados
+
+Após construir modelos de Ciência de Dados, é crucial saber como implementá-los e comunicar os resultados obtidos. Nesta seção, vamos discutir como levar os modelos do ambiente de desenvolvimento para a produção e como apresentar os insights de forma eficaz.
+
+## Exemplo Prático: Comunicação de Insights com R
+
+A comunicação eficaz dos resultados é feita através de visualizações claras e relatórios bem estruturados. Vamos criar um boxplot para comunicar a distribuição de milhas por galão para diferentes números de cilindros nos carros.
+
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+# Visualização de dados para comunicação de insights
+ggplot(mtcars, aes(x = factor(cyl), y = mpg)) +
+  geom_boxplot() +
+  labs(title = "Distribuição de Milhas por Galão por Número de Cilindros", x = "Número de Cilindros", y = "Milhas por Galão")
+```
+
+Este gráfico boxplot nos mostra a mediana, os quartis e os outliers para cada grupo de número de cilindros, permitindo-nos comparar rapidamente as distribuições.
+
+#Modelagem e Interpretação
+
+Finalmente, vamos abordar a modelagem e interpretação. Modelagem envolve a criação de modelos estatísticos ou de aprendizado de máquina que podem prever ou classificar dados. Interpretação é sobre entender o que os resultados do modelo realmente significam.
+
+## Modelagem com R, outro exemplo prático.
+
+Vamos construir um modelo de regressão linear simples para entender a relação entre o peso dos carros e o consumo de combustível.
+
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+# Construção de um modelo de regressão linear
+modelo_linear <- lm(mpg ~ wt + hp, data = mtcars) # Cria o modelo
+summary(modelo_linear) # Mostra um resumo do modelo
+```
+
+## Aqui precisamos respirar e ir aos detalhes desta saída.
+
+-   Call: Mostra a chamada da função que foi feita, indicando que foi ajustado um modelo de regressão linear (lm) com mpg como variável resposta e wt e hp como variáveis preditoras.
+
+-   Residuals: Os resíduos representam a diferença entre os valores observados e os valores previstos pelo modelo. Os valores listados são os quantis dos resíduos, mostrando a variação dos dados em torno do modelo.
+
+-   Coefficients:
+
+-   Estimate: São as estimativas dos coeficientes do modelo. O intercepto (37.22727) é o valor estimado de quando wt e hp são zero.
+
+-   Std. Error: O erro padrão da estimativa dos coeficientes.
+
+-   t value: O valor t é a razão entre a estimativa do coeficiente e seu erro padrão. Valores t altos indicam que é improvável que o coeficiente seja zero.
+
+-   Pr(\>\|t\|): O p-valor associado ao teste t para cada coeficiente. Valores pequenos (tipicamente abaixo de 0.05) indicam que é improvável que o coeficiente seja zero, sugerindo que a variável é significativa no modelo.
+
+-   Signif. codes: Códigos de significância que ajudam a identificar rapidamente a significância estatística dos coeficientes (\*\*\* indica p \< 0.001, \*\* indica p \< 0.01, \* indica p \< 0.05).
+
+-   Residual standard error: O erro padrão dos resíduos, que é uma medida da variabilidade dos dados em torno da linha de regressão ajustada.
+
+-   Degrees of freedom: Graus de liberdade associados aos resíduos do modelo (número de observações menos o número de parâmetros estimados).
+
+-   Multiple R-squared: O R-quadrado múltiplo é uma medida de quão bem as variáveis independentes explicam a variabilidade da variável dependente. O valor de 0.8268 indica que aproximadamente 82.68% da variabilidade em mpg pode ser explicada pelo modelo.
+
+-   Adjusted R-squared: O R-quadrado ajustado é uma versão modificada do R-quadrado que leva em conta o número de preditores no modelo. É útil para comparar modelos com um número diferente de variáveis preditoras.
+
+-   F-statistic: A estatística F é usada para testar a significância global do modelo. Um valor alto indica que há evidência contra a hipótese nula de que todos os coeficientes são iguais a zero.
+
+-   p-value: O p-valor associado à estatística F. Um valor muito pequeno (neste caso, 9.109e-12) sugere que o modelo como um todo é significativo.
+
+## Interpretação dos Resultados
+
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+# Interpretação dos coeficientes do modelo
+coef(modelo_linear) # Exibe os coeficientes do modelo
+```
+
+A saída apresentada é de um modelo de regressão linear, onde Intercept, wt e hp são os coeficientes estimados. O Intercepto (37.22727) representa o valor estimado da variável dependente quando todas as variáveis independentes são zero. O coeficiente para wt (-3.87783) indica que, para cada unidade de aumento no peso, espera-se uma diminuição média de aproximadamente 3.88 na variável dependente.
+
+Similarmente, o coeficiente para hp (-0.03177) sugere que um aumento de uma unidade na potência do carro está associado a uma diminuição média de 0.032 na variável dependente. Esses coeficientes ajudam a entender como o peso e a potência do carro afetam a variável de interesse, como o consumo de combustível.
+
+## Desafio para Casa
+
+-   O desafio é aplicar esta sequencia analítica ao conjunto de dados State of Data 2022. Na prróxima aula veremso isto e muito mais.
+
+------------------------------------------------------------------------
+
+# Conclusão da Aula - um textop para lerem depois e fixar!
+
+Gênios, todos bem??
+
+Não se preocupem, tudo isso será revisitado e aprofundado nas próximas aulas e no curso de Introdução ao R que vocês terão no próximo semestre.
+
+O importante agora não é memorizar os códigos, mas sim entender os resultados que eles nos ajudam a alcançar e a lógica por trás de nossa construção analítica.
+
+Ao longo desta aula, exploramos os fundamentos da Ciência de Dados e como ela se aplica no mundo dos negócios. Vimos como formular perguntas claras e mensuráveis, coletar e preparar dados, e realizar uma Análise Exploratória de Dados (EDA) para descobrir tendências e padrões.
+
+Aprofundamos em técnicas de mineração de dados, como o clustering, e discutimos a importância do pensamento analítico na interpretação desses padrões.
+
+Também abordamos a implementação de soluções de Ciência de Dados e a comunicação eficaz dos resultados, habilidades essenciais para qualquer cientista de dados.
+
+Por fim, entramos no território da modelagem e interpretação, onde aplicamos técnicas estatísticas e de aprendizado de máquina para construir modelos preditivos. Aprendemos a interpretar os resultados desses modelos e a traduzi-los em insights acionáveis.
+
+Lembrem-se, a Ciência de Dados é uma ação contínua de aprendizado e descoberta. Cada passo que demos hoje é um tijolo na construção do seu conhecimento. E, assim como qualquer construção, ela se fortalece com o tempo e a prática.
+
+### Até a próxima aula.
+
+### See You Soon!
